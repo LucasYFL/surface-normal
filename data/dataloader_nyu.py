@@ -7,9 +7,9 @@ import torch.utils.data.distributed
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 import torchvision.transforms.functional as TF
-
+import scipy
 import data.utils as data_utils
-
+import os
 
 # Modify the following
 NYU_PATH = './datasets/nyu/'
@@ -21,7 +21,10 @@ class NyuLoader(object):
                   'train',      # official train set (795 images) 
                   'test'}       # official test set (654 images)
         """
-        self.t_samples = NyuLoadPreprocess(args, mode)
+        if mode == 'train_big':
+            self.t_samples = LargePreprocess(args, mode)
+        else:
+            self.t_samples = NyuLoadPreprocess(args, mode)
 
         # train, train_big
         if 'train' in mode:
@@ -43,6 +46,105 @@ class NyuLoader(object):
                                    num_workers=1,
                                    pin_memory=False)
 
+
+class LargePreprocess(Dataset):
+    def __init__(self, args, mode):
+        self.args = args
+        # train, train_big, test, test_new
+        dir = os.path.join(NYU_PATH,"large")
+        self.filenames = os.listdir(dir)
+        self.mode = mode
+        self.normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        self.dataset_path = dir
+        self.input_height = args.input_height
+        self.input_width = args.input_width
+
+    def __len__(self):
+        return len(self.filenames)
+    def myfunc(x):
+        try:
+            data_dic = scipy.io.loadmat(x)
+            data_img = data_dic['img']
+            data_norm = data_dic['norm']
+            return data_img,data_norm
+        except:
+            return None,None
+
+
+    def __getitem__(self, idx):
+        sample_path = self.filenames[idx]
+
+        scene_name = self.mode
+        
+
+        img, norm_gt = self.myfunc(os.path.join(self.dataset_path,sample_path))
+        if img is None or norm_gt is None:
+            return None
+        img[:,:,0] = img[:,:,0] + 2* 122.175
+        img[:,:,1] = img[:,:,1] + 2* 116.169
+        img[:,:,2] = img[:,:,2] + 2* 103.508
+        img  = img.astype(int)
+        if 'train' in self.mode:
+            # horizontal flip (default: True)
+            DA_hflip = False
+            if self.args.data_augmentation_hflip:
+                DA_hflip = random.random() > 0.5
+                if DA_hflip:
+                    img = img[:,::-1,:]
+                    norm_gt = norm_gt[:,::-1,:]
+
+            # to array
+            img = img.astype(np.float32) / 255.0
+
+            # norm_gt = np.array(norm_gt).astype(np.uint8)
+
+            norm_valid_mask = np.logical_not(
+                np.logical_and(
+                    np.logical_and(
+                        norm_gt[:, :, 0] == 0, norm_gt[:, :, 1] == 0),
+                    norm_gt[:, :, 2] == 0))
+            norm_valid_mask = norm_valid_mask[:, :, np.newaxis]
+
+            # norm_gt = ((norm_gt.astype(np.float32) / 255.0) * 2.0) - 1.0
+
+            if DA_hflip:
+                norm_gt[:, :, 0] = - norm_gt[:, :, 0]
+
+            # random crop (default: False)
+            if self.args.data_augmentation_random_crop:
+                img, norm_gt, norm_valid_mask = data_utils.random_crop(img, norm_gt, norm_valid_mask, 
+                                                                     height=416, width=544)
+
+            # color augmentation (default: True)
+            if self.args.data_augmentation_color:
+                if random.random() > 0.5:
+                    img = data_utils.color_augmentation(img, indoors=True)
+        else:
+            img = img.astype(np.float32) / 255.0
+
+            # norm_gt = np.array(norm_gt).astype(np.uint8)
+
+            norm_valid_mask = np.logical_not(
+                np.logical_and(
+                    np.logical_and(
+                        norm_gt[:, :, 0] == 0, norm_gt[:, :, 1] == 0),
+                    norm_gt[:, :, 2] == 0))
+            norm_valid_mask = norm_valid_mask[:, :, np.newaxis]
+
+            # norm_gt = ((norm_gt.astype(np.float32) / 255.0) * 2.0) - 1.0
+
+        # to tensors
+        img = self.normalize(torch.from_numpy(img).permute(2, 0, 1))            # (3, H, W)
+        norm_gt = torch.from_numpy(norm_gt).permute(2, 0, 1)                    # (3, H, W)
+        norm_valid_mask = torch.from_numpy(norm_valid_mask).permute(2, 0, 1)    # (1, H, W)
+
+        sample = {'img': img,
+                  'norm': norm_gt,
+                  'norm_valid_mask': norm_valid_mask,
+                  'scene_name': scene_name,
+                  'img_name': sample_path}
+
+        return sample
 
 class NyuLoadPreprocess(Dataset):
     def __init__(self, args, mode):

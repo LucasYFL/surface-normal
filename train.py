@@ -72,6 +72,8 @@ def train(model, args, device):
             t_loader = train_loader
 
         for data_dict in t_loader:
+            if not data_dict:
+                continue
             optimizer.zero_grad()
             total_iter += args.batch_size_orig
 
