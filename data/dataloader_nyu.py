@@ -61,7 +61,7 @@ class LargePreprocess(Dataset):
 
     def __len__(self):
         return len(self.filenames)
-    def myfunc(x):
+    def myfunc(self,x):
         try:
             data_dic = scipy.io.loadmat(x)
             data_img = data_dic['img']
@@ -90,8 +90,8 @@ class LargePreprocess(Dataset):
             if self.args.data_augmentation_hflip:
                 DA_hflip = random.random() > 0.5
                 if DA_hflip:
-                    img = img[:,::-1,:]
-                    norm_gt = norm_gt[:,::-1,:]
+                    img = img[:,::-1,:].copy()
+                    norm_gt = norm_gt[:,::-1,:].copy()
 
             # to array
             img = img.astype(np.float32) / 255.0
