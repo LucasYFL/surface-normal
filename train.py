@@ -27,7 +27,7 @@ def train(model, args, device):
     # dataloader
     if args.dataset_name == 'nyu':
         from data.dataloader_nyu import NyuLoader
-        train_loader = NyuLoader(args, 'train').data
+        train_loader = NyuLoader(args, 'train_big').data
         test_loader = NyuLoader(args, 'test').data
     else:
         raise Exception('invalid dataset name')
@@ -122,6 +122,13 @@ def train(model, args, device):
 
                 # empty cache
                 torch.cuda.empty_cache()
+        checkpoint = { 
+            'epoch': epoch,
+            'model': model.state_dict(),
+            'optimizer': optimizer.state_dict(),
+            'lr_sched': scheduler.state_dict(),
+            'scaler': scaler.state_dict()}
+        torch.save(checkpoint, 'checkpoint.pth')
 
     if should_write:
         model.eval()
@@ -252,7 +259,7 @@ if __name__ == '__main__':
 
     # training
     parser.add_argument('--n_epochs', default=5, type=int, help='number of total epochs to run')
-    parser.add_argument('--batch_size', default=2, type=int)
+    parser.add_argument('--batch_size', default=4, type=int)
     parser.add_argument('--validate_every', default=5000, type=int, help='validation period')
     parser.add_argument('--visualize_every', default=1000, type=int, help='visualization period')
     parser.add_argument("--distributed", default=False, action="store_true", help="Use DDP if set")

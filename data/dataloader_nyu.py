@@ -36,7 +36,7 @@ class NyuLoader(object):
             self.data = DataLoader(self.t_samples, args.batch_size,
                                    shuffle=(self.train_sampler is None),
                                    num_workers=args.num_threads,
-                                   pin_memory=True,
+                                   pin_memory=False,
                                    drop_last=True,
                                    sampler=self.train_sampler)
 
