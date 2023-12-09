@@ -83,20 +83,29 @@ class LargePreprocess(Dataset):
         img[:,:,0] = img[:,:,0] + 2* 122.175
         img[:,:,1] = img[:,:,1] + 2* 116.169
         img[:,:,2] = img[:,:,2] + 2* 103.508
-        img  = img.astype(int)
+        img  = img.astype(np.uint8)
+        norm_gt = (((norm_gt+1)/2)*255).astype(np.uint8)
+        img = Image.fromarray(img).convert('RGB').resize(size=(self.input_width, self.input_height), 
+                                                            resample=Image.BILINEAR)
+        norm_gt = Image.fromarray(norm_gt).convert('RGB').resize(size=(self.input_width, self.input_height),
+                                                             resample=Image.NEAREST)
         if 'train' in self.mode:
             # horizontal flip (default: True)
             DA_hflip = False
             if self.args.data_augmentation_hflip:
                 DA_hflip = random.random() > 0.5
                 if DA_hflip:
-                    img = img[:,::-1,:].copy()
-                    norm_gt = norm_gt[:,::-1,:].copy()
+                    # img = img[:,::-1,:].copy()
+                    # norm_gt = norm_gt[:,::-1,:].copy()
+                    img = TF.hflip(img)
+                    norm_gt = TF.hflip(norm_gt)
 
             # to array
-            img = img.astype(np.float32) / 255.0
+            # img = img.astype(np.float32) / 255.0
+            img = np.array(img).astype(np.float32) / 255.0
 
-            # norm_gt = np.array(norm_gt).astype(np.uint8)
+            norm_gt = np.array(norm_gt).astype(np.uint8)
+            
 
             norm_valid_mask = np.logical_not(
                 np.logical_and(
@@ -105,7 +114,7 @@ class LargePreprocess(Dataset):
                     norm_gt[:, :, 2] == 0))
             norm_valid_mask = norm_valid_mask[:, :, np.newaxis]
 
-            # norm_gt = ((norm_gt.astype(np.float32) / 255.0) * 2.0) - 1.0
+            norm_gt = ((norm_gt.astype(np.float32) / 255.0) * 2.0) - 1.0
 
             if DA_hflip:
                 norm_gt[:, :, 0] = - norm_gt[:, :, 0]
@@ -120,9 +129,11 @@ class LargePreprocess(Dataset):
                 if random.random() > 0.5:
                     img = data_utils.color_augmentation(img, indoors=True)
         else:
-            img = img.astype(np.float32) / 255.0
+            # img = img.astype(np.float32) / 255.0
+            img = np.array(img).astype(np.float32) / 255.0
 
-            # norm_gt = np.array(norm_gt).astype(np.uint8)
+            norm_gt = np.array(norm_gt).astype(np.uint8)
+
 
             norm_valid_mask = np.logical_not(
                 np.logical_and(
@@ -131,7 +142,7 @@ class LargePreprocess(Dataset):
                     norm_gt[:, :, 2] == 0))
             norm_valid_mask = norm_valid_mask[:, :, np.newaxis]
 
-            # norm_gt = ((norm_gt.astype(np.float32) / 255.0) * 2.0) - 1.0
+            norm_gt = ((norm_gt.astype(np.float32) / 255.0) * 2.0) - 1.0
 
         # to tensors
         img = self.normalize(torch.from_numpy(img).permute(2, 0, 1))            # (3, H, W)
