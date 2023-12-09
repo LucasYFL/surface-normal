@@ -62,18 +62,34 @@ def train(model, args, device):
     # start training
     total_iter = 0
     model.train()
+    resume = False
+    if os.path.exists("checkpoint.pth"):
+        resume = True
+        checkpoint = torch.load("checkpoint.pth")
+        model.load_state_dict(checkpoint['model'])
+        optimizer.load_state_dict(checkpoint['optimizer'])
+        scheduler.load_state_dict(checkpoint['lr_sched'])
+        scaler.load_state_dict(checkpoint['scaler'])
+        total_iter = checkpoint['epoch']*len(train_loader)*args.batch_size_orig
+        # total_iter = checkpoint['total_iter']
     # model.encoder.eval()
     # for p in model.encoder.parameters():
     #     p.requires_grad = False
     for epoch in range(args.n_epochs):
+        if resume and epoch < checkpoint['epoch']:
+            continue
         if args.rank == 0:
             t_loader = tqdm(train_loader, desc=f"Epoch: {epoch + 1}/{args.n_epochs}. Loop: Train")
         else:
             t_loader = train_loader
-
+        inc = 0
         for data_dict in t_loader:
             if not data_dict:
                 continue
+            if resume:
+                if total_iter < checkpoint['total_iter']:
+                    total_iter += args.batch_size_orig
+                    continue
             optimizer.zero_grad()
             total_iter += args.batch_size_orig
 
@@ -122,14 +138,29 @@ def train(model, args, device):
 
                 # empty cache
                 torch.cuda.empty_cache()
+            if inc == 100:
+                torch.cuda.empty_cache()
+                inc = 0
+                gc.collect()
+                checkpoint = { 
+                'epoch': epoch,
+                'model': model.state_dict(),
+                'optimizer': optimizer.state_dict(),
+                'lr_sched': scheduler.state_dict(),
+                'scaler': scaler.state_dict(),
+                'total_iter': total_iter}
+                torch.save(checkpoint, 'checkpoint.pth')
+            inc+=1
         checkpoint = { 
             'epoch': epoch,
             'model': model.state_dict(),
             'optimizer': optimizer.state_dict(),
             'lr_sched': scheduler.state_dict(),
-            'scaler': scaler.state_dict()}
+            'scaler': scaler.state_dict(),
+            'total_iter': total_iter}
         torch.save(checkpoint, 'checkpoint.pth')
-
+        torch.cuda.empty_cache()
+        gc.collect()
     if should_write:
         model.eval()
         target_path = args.exp_model_dir + '/checkpoint_iter_%010d.pt' % total_iter
@@ -259,9 +290,9 @@ if __name__ == '__main__':
 
     # training
     parser.add_argument('--n_epochs', default=5, type=int, help='number of total epochs to run')
-    parser.add_argument('--batch_size', default=4, type=int)
+    parser.add_argument('--batch_size', default=3, type=int)
     parser.add_argument('--validate_every', default=5000, type=int, help='validation period')
-    parser.add_argument('--visualize_every', default=1000, type=int, help='visualization period')
+    parser.add_argument('--visualize_every', default=4000, type=int, help='visualization period')
     parser.add_argument("--distributed", default=False, action="store_true", help="Use DDP if set")
     parser.add_argument("--workers", default=12, type=int, help="Number of workers for data loading")
 
