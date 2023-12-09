@@ -13,36 +13,36 @@ class Decoder(nn.Module):
         self.importance_ratio = args.importance_ratio
 
         # feature-map
-        self.conv2 = nn.Conv2d(1280, 1280, kernel_size=1, stride=1, padding=0)
-        if args.architecture == 'BN':
-            self.up1 = UpSampleBN(skip_input=1280 + 160, output_features=1024)
-            self.up2 = UpSampleBN(skip_input=1024 + 64, output_features=512)
-            self.up3 = UpSampleBN(skip_input=512 + 48, output_features=256)
-            self.up4 = UpSampleBN(skip_input=256 + 24, output_features=128)
-
-        elif args.architecture == 'GN':
-            self.up1 = UpSampleGN(skip_input=1280 + 160, output_features=1024)
-            self.up2 = UpSampleGN(skip_input=1024 + 64, output_features=512)
-            self.up3 = UpSampleGN(skip_input=512 + 48, output_features=256)
-            self.up4 = UpSampleGN(skip_input=256 + 24, output_features=128)
-
-        else:
-            raise Exception('invalid architecture')
-        # self.conv2 = nn.Conv2d(2048, 2048, kernel_size=1, stride=1, padding=0)
+        # self.conv2 = nn.Conv2d(1280, 1280, kernel_size=1, stride=1, padding=0)
         # if args.architecture == 'BN':
-        #     self.up1 = UpSampleBN(skip_input=2048 + 176, output_features=1024)
+        #     self.up1 = UpSampleBN(skip_input=1280 + 160, output_features=1024)
         #     self.up2 = UpSampleBN(skip_input=1024 + 64, output_features=512)
-        #     self.up3 = UpSampleBN(skip_input=512 + 40, output_features=256)
+        #     self.up3 = UpSampleBN(skip_input=512 + 48, output_features=256)
         #     self.up4 = UpSampleBN(skip_input=256 + 24, output_features=128)
 
         # elif args.architecture == 'GN':
-        #     self.up1 = UpSampleGN(skip_input=2048 + 176, output_features=1024)
+        #     self.up1 = UpSampleGN(skip_input=1280 + 160, output_features=1024)
         #     self.up2 = UpSampleGN(skip_input=1024 + 64, output_features=512)
-        #     self.up3 = UpSampleGN(skip_input=512 + 40, output_features=256)
+        #     self.up3 = UpSampleGN(skip_input=512 + 48, output_features=256)
         #     self.up4 = UpSampleGN(skip_input=256 + 24, output_features=128)
 
         # else:
         #     raise Exception('invalid architecture')
+        self.conv2 = nn.Conv2d(2048, 2048, kernel_size=1, stride=1, padding=0)
+        if args.architecture == 'BN':
+            self.up1 = UpSampleBN(skip_input=2048 + 176, output_features=1024)
+            self.up2 = UpSampleBN(skip_input=1024 + 64, output_features=512)
+            self.up3 = UpSampleBN(skip_input=512 + 40, output_features=256)
+            self.up4 = UpSampleBN(skip_input=256 + 24, output_features=128)
+
+        elif args.architecture == 'GN':
+            self.up1 = UpSampleGN(skip_input=2048 + 176, output_features=1024)
+            self.up2 = UpSampleGN(skip_input=1024 + 64, output_features=512)
+            self.up3 = UpSampleGN(skip_input=512 + 40, output_features=256)
+            self.up4 = UpSampleGN(skip_input=256 + 24, output_features=128)
+
+        else:
+            raise Exception('invalid architecture')
 
 
         # produces 1/8 res output
@@ -73,8 +73,8 @@ class Decoder(nn.Module):
         )
 
     def forward(self, features, gt_norm_mask=None, mode='test'):
-        # x_block0, x_block1, x_block2, x_block3, x_block4 = features[4], features[5], features[6], features[8], features[11]
-        x_block0, x_block1, x_block2, x_block3, x_block4 = features[2], features[3], features[4], features[6], features[8]
+        x_block0, x_block1, x_block2, x_block3, x_block4 = features[4], features[5], features[6], features[8], features[11]
+        # x_block0, x_block1, x_block2, x_block3, x_block4 = features[2], features[3], features[4], features[6], features[8]
 
         # generate feature-map
 
