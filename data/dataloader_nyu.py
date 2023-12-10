@@ -36,7 +36,7 @@ class NyuLoader(object):
             self.data = DataLoader(self.t_samples, args.batch_size,
                                    shuffle=(self.train_sampler is None),
                                    num_workers=args.num_threads,
-                                   pin_memory=False,
+                                   pin_memory=True,
                                    drop_last=True,
                                    sampler=self.train_sampler)
 
@@ -64,11 +64,12 @@ class LargePreprocess(Dataset):
     def myfunc(self,x):
         try:
             data_dic = scipy.io.loadmat(x)
-            data_img = data_dic['img']
-            data_norm = data_dic['norm']
-            return data_img,data_norm
+            data_img = data_dic['img'][:-1,:-1,:].copy()
+            data_norm = data_dic['norm'][:-1,:-1,:].copy()
+            data_mask = data_dic['mask'][:-1,:-1,:].copy()
+            return data_img,data_norm,data_mask
         except:
-            return None,None
+            return None,None,None
 
 
     def __getitem__(self, idx):
@@ -77,7 +78,7 @@ class LargePreprocess(Dataset):
         scene_name = self.mode
         
 
-        img, norm_gt = self.myfunc(os.path.join(self.dataset_path,sample_path))
+        img, norm_gt,norm_valid_mask = self.myfunc(os.path.join(self.dataset_path,sample_path))
         if img is None or norm_gt is None:
             return None
         img[:,:,0] = img[:,:,0] + 2* 122.175
@@ -107,11 +108,11 @@ class LargePreprocess(Dataset):
             norm_gt = np.array(norm_gt).astype(np.uint8)
             
 
-            norm_valid_mask = np.logical_not(
-                np.logical_and(
-                    np.logical_and(
-                        norm_gt[:, :, 0] == 0, norm_gt[:, :, 1] == 0),
-                    norm_gt[:, :, 2] == 0))
+            # norm_valid_mask = np.logical_not(
+            #     np.logical_and(
+            #         np.logical_and(
+            #             norm_gt[:, :, 0] == 0, norm_gt[:, :, 1] == 0),
+            #         norm_gt[:, :, 2] == 0))
             norm_valid_mask = norm_valid_mask[:, :, np.newaxis]
 
             norm_gt = ((norm_gt.astype(np.float32) / 255.0) * 2.0) - 1.0
@@ -135,11 +136,11 @@ class LargePreprocess(Dataset):
             norm_gt = np.array(norm_gt).astype(np.uint8)
 
 
-            norm_valid_mask = np.logical_not(
-                np.logical_and(
-                    np.logical_and(
-                        norm_gt[:, :, 0] == 0, norm_gt[:, :, 1] == 0),
-                    norm_gt[:, :, 2] == 0))
+            # norm_valid_mask = np.logical_not(
+            #     np.logical_and(
+            #         np.logical_and(
+            #             norm_gt[:, :, 0] == 0, norm_gt[:, :, 1] == 0),
+            #         norm_gt[:, :, 2] == 0))
             norm_valid_mask = norm_valid_mask[:, :, np.newaxis]
 
             norm_gt = ((norm_gt.astype(np.float32) / 255.0) * 2.0) - 1.0
