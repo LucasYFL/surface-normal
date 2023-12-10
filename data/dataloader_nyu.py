@@ -113,7 +113,7 @@ class LargePreprocess(Dataset):
             #         np.logical_and(
             #             norm_gt[:, :, 0] == 0, norm_gt[:, :, 1] == 0),
             #         norm_gt[:, :, 2] == 0))
-            norm_valid_mask = norm_valid_mask[:, :, np.newaxis]
+            norm_valid_mask = norm_valid_mask[:, :, np.newaxis].astype(bool)
 
             norm_gt = ((norm_gt.astype(np.float32) / 255.0) * 2.0) - 1.0
 
@@ -141,7 +141,7 @@ class LargePreprocess(Dataset):
             #         np.logical_and(
             #             norm_gt[:, :, 0] == 0, norm_gt[:, :, 1] == 0),
             #         norm_gt[:, :, 2] == 0))
-            norm_valid_mask = norm_valid_mask[:, :, np.newaxis]
+            norm_valid_mask = norm_valid_mask[:, :, np.newaxis].astype(bool)
 
             norm_gt = ((norm_gt.astype(np.float32) / 255.0) * 2.0) - 1.0
 
