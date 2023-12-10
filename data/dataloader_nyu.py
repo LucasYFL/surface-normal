@@ -10,10 +10,10 @@ import torchvision.transforms.functional as TF
 import scipy
 import data.utils as data_utils
 import os
-
+import pickle
 # Modify the following
 NYU_PATH = './datasets/nyu/'
-SCANNET_PATH = '/content/surface-normal/scan/scannet-frames/scene0636_00' # modify
+SCANNET_PATH = '/content/surface-normal/scan/' # modify
 class ScanLoader(object):
     def __init__(self, args, mode):
         """mode: {'train_big',  # training set used by GeoNet (CVPR18, 30907 images)
@@ -22,7 +22,7 @@ class ScanLoader(object):
         """
         
         self.t_samples = ScanPre(args, mode)
-
+        
         # train, train_big
         if 'train' in mode:
             if args.distributed:
@@ -46,8 +46,11 @@ class ScanLoader(object):
 class ScanPre(Dataset):
     def __init__(self, args, mode):
         self.args = args
-        dir = SCANNET_PATH
-        self.filenames = [f for f in os.listdir(dir) if f.endswith('-color.png')]
+        splitdir = os.path.join(SCANNET_PATH, 'train_test_split.pkl')
+        with open(splitdir, 'rb') as f:
+            self.filenames = pickle.load(f)[mode][0]
+        dir = os.path.join(SCANNET_PATH, 'scannet-frames')
+        # self.filenames = [f for f in os.listdir(dir) if f.endswith('-color.png')]
         self.mode = mode
         self.normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406], 
                                               std=[0.229, 0.224, 0.225]) # same as NYU
@@ -59,7 +62,7 @@ class ScanPre(Dataset):
         return len(self.filenames)
 
     def __getitem__(self, idx):
-        img_name = os.path.join(self.dataset_path, self.filenames[idx])
+        img_name = os.path.join(self.dataset_path, self.filenames[idx][27:])
         norm_name = img_name.replace('-color', '-normal')
         mask_name = img_name.replace('-color', '-orient-mask')
         img = Image.open(img_name).convert("RGB")
