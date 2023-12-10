@@ -66,7 +66,7 @@ class LargePreprocess(Dataset):
             data_dic = scipy.io.loadmat(x)
             data_img = data_dic['img'][:-1,:-1,:].copy()
             data_norm = data_dic['norm'][:-1,:-1,:].copy()
-            data_mask = data_dic['mask'][:-1,:-1,:].copy()
+            data_mask = data_dic['mask'][:-1,:-1].copy()
             return data_img,data_norm,data_mask
         except:
             return None,None,None
