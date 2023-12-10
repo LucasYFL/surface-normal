@@ -100,6 +100,7 @@ class LargePreprocess(Dataset):
                     # norm_gt = norm_gt[:,::-1,:].copy()
                     img = TF.hflip(img)
                     norm_gt = TF.hflip(norm_gt)
+                    norm_valid_mask = norm_valid_mask[:,::-1].copy()
 
             # to array
             # img = img.astype(np.float32) / 255.0
