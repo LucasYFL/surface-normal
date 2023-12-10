@@ -13,7 +13,128 @@ import os
 
 # Modify the following
 NYU_PATH = './datasets/nyu/'
+SCANNET_PATH = '/content/surface-normal/scan/scannet-frames/scene0636_00' # modify
+class ScanLoader(object):
+    def __init__(self, args, mode):
+        """mode: {'train_big',  # training set used by GeoNet (CVPR18, 30907 images)
+                  'train',      # official train set (795 images) 
+                  'test'}       # official test set (654 images)
+        """
+        
+        self.t_samples = ScanPre(args, mode)
 
+        # train, train_big
+        if 'train' in mode:
+            if args.distributed:
+                self.train_sampler = torch.utils.data.distributed.DistributedSampler(self.t_samples)
+            else:
+                self.train_sampler = None
+
+            self.data = DataLoader(self.t_samples, args.batch_size,
+                                   shuffle=(self.train_sampler is None),
+                                   num_workers=args.num_threads,
+                                   pin_memory=True,
+                                   drop_last=True,
+                                   sampler=self.train_sampler)
+
+        else:
+            self.data = DataLoader(self.t_samples, 1,
+                                   shuffle=False,
+                                   num_workers=1,
+                                   pin_memory=False)
+
+class ScanPre(Dataset):
+    def __init__(self, args, mode):
+        self.args = args
+        dir = SCANNET_PATH
+        self.filenames = [f for f in os.listdir(dir) if f.endswith('-color.png')]
+        self.mode = mode
+        self.normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406], 
+                                              std=[0.229, 0.224, 0.225]) # same as NYU
+        self.dataset_path = dir 
+        self.input_height = args.input_height
+        self.input_width = args.input_width
+
+    def __len__(self):
+        return len(self.filenames)
+
+    def __getitem__(self, idx):
+        img_name = os.path.join(self.dataset_path, self.filenames[idx])
+        norm_name = img_name.replace('-color', '-normal')
+        mask_name = img_name.replace('-color', '-orient-mask')
+        img = Image.open(img_name).convert("RGB")
+        norm_gt = Image.open(norm_name).convert("RGB")
+        norm_valid_mask = Image.open(mask_name)
+        if 'train' in self.mode:
+            # horizontal flip (default: True)
+            DA_hflip = False
+            if self.args.data_augmentation_hflip:
+                DA_hflip = random.random() > 0.5
+                if DA_hflip:
+                    # img = img[:,::-1,:].copy()
+                    # norm_gt = norm_gt[:,::-1,:].copy()
+                    img = TF.hflip(img)
+                    norm_gt = TF.hflip(norm_gt)
+                    norm_valid_mask = TF.hflip(norm_valid_mask)
+            # to array
+            # img = img.astype(np.float32) / 255.0
+            img = np.array(img).astype(np.float32) / 255.0
+
+            norm_gt = np.array(norm_gt).astype(np.uint8)
+            
+
+            # norm_valid_mask = np.logical_not(
+            #     np.logical_and(
+            #         np.logical_and(
+            #             norm_gt[:, :, 0] == 0, norm_gt[:, :, 1] == 0),
+            #         norm_gt[:, :, 2] == 0))
+            norm_valid_mask = np.array(norm_valid_mask).astype(bool)
+
+            norm_valid_mask = norm_valid_mask[:, :, np.newaxis]
+
+            norm_gt = ((norm_gt.astype(np.float32) / 255.0) * 2.0) - 1.0
+
+            if DA_hflip:
+                norm_gt[:, :, 0] = - norm_gt[:, :, 0]
+
+            # random crop (default: False)
+            if self.args.data_augmentation_random_crop:
+                img, norm_gt, norm_valid_mask = data_utils.random_crop(img, norm_gt, norm_valid_mask, 
+                                                                     height=416, width=544)
+
+            # color augmentation (default: True)
+            if self.args.data_augmentation_color:
+                if random.random() > 0.5:
+                    img = data_utils.color_augmentation(img, indoors=True)
+        else:
+            # img = img.astype(np.float32) / 255.0
+            img = np.array(img).astype(np.float32) / 255.0
+
+            norm_gt = np.array(norm_gt).astype(np.uint8)
+
+            norm_valid_mask = np.array(norm_valid_mask).astype(bool)
+
+            # norm_valid_mask = np.logical_not(
+            #     np.logical_and(
+            #         np.logical_and(
+            #             norm_gt[:, :, 0] == 0, norm_gt[:, :, 1] == 0),
+            #         norm_gt[:, :, 2] == 0))
+            norm_valid_mask = norm_valid_mask[:, :, np.newaxis]
+
+            norm_gt = ((norm_gt.astype(np.float32) / 255.0) * 2.0) - 1.0
+
+        # to tensors
+        img = self.normalize(torch.from_numpy(img).permute(2, 0, 1))            # (3, H, W)
+        norm_gt = torch.from_numpy(norm_gt).permute(2, 0, 1)                    # (3, H, W)
+        norm_valid_mask = torch.from_numpy(norm_valid_mask).permute(2, 0, 1)    # (1, H, W)
+
+        sample = {'img': img,
+                  'norm': norm_gt,
+                  'norm_valid_mask': norm_valid_mask,
+                  'scene_name': img_name,
+                  'img_name': img_name}
+
+        return sample
 
 class NyuLoader(object):
     def __init__(self, args, mode):
