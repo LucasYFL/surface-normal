@@ -31,7 +31,8 @@ def train(model, args, device):
         test_loader = NyuLoader(args, 'test').data
     else:
         from data.dataloader_nyu import ScanLoader
-        train_loader = ScanLoader(args,'train').data
+        train_loader = ScanLoader(args, 'train_big').data
+        test_loader = ScanLoader(args, 'test').data
 
     # define losses
     loss_fn = compute_loss(args)
@@ -140,9 +141,9 @@ def train(model, args, device):
                 # empty cache
                 torch.cuda.empty_cache()
             if inc == 100:
-                torch.cuda.empty_cache()
+                # torch.cuda.empty_cache()
                 inc = 0
-                gc.collect()
+                # gc.collect()
                 checkpoint = { 
                 'epoch': epoch,
                 'model': model.state_dict(),
@@ -192,7 +193,7 @@ def _unnormalize(img_in):
     
 def validate(model, args, test_loader, device, total_iter, where_to_write, vis_dir=None):
     with torch.no_grad():
-        total_normal_errors = None
+        total_normal_errors = []
         for data_dict in tqdm(test_loader, desc="Loop: Validation"):
 
             # data to device
@@ -219,11 +220,14 @@ def validate(model, args, test_loader, device, total_iter, where_to_write, vis_d
             E = torch.acos(prediction_error) * 180.0 / np.pi
 
             mask = gt_norm_mask[:, 0, :, :]
-            if total_normal_errors is None:
-                total_normal_errors = E[mask]
-            else:
-                total_normal_errors = torch.cat((total_normal_errors, E[mask]), dim=0)
-
+            total_normal_errors.append(E[mask].detach().cpu())
+            # if total_normal_errors is None:
+            #     total_normal_errors = E[mask].detach().cpu()
+            # else:
+            #     total_normal_errors = torch.cat((total_normal_errors, E[mask].detach().cpu()), dim=0)
+            torch.cuda.empty_cache()
+            gc.collect()
+        total_normal_errors = torch.cat(total_normal_errors, dim=0)
         total_normal_errors = total_normal_errors.data.cpu().numpy()
         metrics = utils.compute_normal_errors(total_normal_errors)
         utils.log_normal_errors(metrics, where_to_write, first_line='total_iter: {}'.format(total_iter))
@@ -291,11 +295,11 @@ if __name__ == '__main__':
 
     # training
     parser.add_argument('--n_epochs', default=5, type=int, help='number of total epochs to run')
-    parser.add_argument('--batch_size', default=3, type=int)
+    parser.add_argument('--batch_size', default=4, type=int)
     parser.add_argument('--validate_every', default=5000, type=int, help='validation period')
     parser.add_argument('--visualize_every', default=4000, type=int, help='visualization period')
     parser.add_argument("--distributed", default=False, action="store_true", help="Use DDP if set")
-    parser.add_argument("--workers", default=12, type=int, help="Number of workers for data loading")
+    parser.add_argument("--workers", default=24, type=int, help="Number of workers for data loading")
 
     # optimizer setup
     parser.add_argument('--weight_decay', default=0.01, type=float, help='weight decay')
