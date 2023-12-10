@@ -30,7 +30,8 @@ def train(model, args, device):
         train_loader = NyuLoader(args, 'train_big').data
         test_loader = NyuLoader(args, 'test').data
     else:
-        raise Exception('invalid dataset name')
+        from data.dataloader_nyu import ScanLoader
+        train_loader = ScanLoader(args,'train').data
 
     # define losses
     loss_fn = compute_loss(args)
