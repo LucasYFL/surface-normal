@@ -28,11 +28,13 @@ def train(model, args, device):
     if args.dataset_name == 'nyu':
         from data.dataloader_nyu import NyuLoader
         train_loader = NyuLoader(args, 'train_big').data
-        test_loader = NyuLoader(args, 'test').data
+        val_loader=test_loader = NyuLoader(args, 'test').data
     else:
-        from data.dataloader_nyu import ScanLoader
-        train_loader = ScanLoader(args, 'train_big').data
+        from data.dataloader_nyu import ScanLoader,NyuLoader
+        train_loader = ScanLoader(args, 'train').data
         test_loader = ScanLoader(args, 'test').data
+        val_loader = ScanLoader(args, 'test',True).data
+
 
     # define losses
     loss_fn = compute_loss(args)
@@ -65,14 +67,15 @@ def train(model, args, device):
     total_iter = 0
     model.train()
     resume = False
-    if os.path.exists("checkpoint.pth"):
+    if os.path.exists(os.path.join(args.exp_dir,"checkpoint.pth")):
         resume = True
-        checkpoint = torch.load("checkpoint.pth")
+        checkpoint = torch.load(os.path.join(args.exp_dir,"checkpoint.pth"))
         model.load_state_dict(checkpoint['model'])
         optimizer.load_state_dict(checkpoint['optimizer'])
         scheduler.load_state_dict(checkpoint['lr_sched'])
         scaler.load_state_dict(checkpoint['scaler'])
-        total_iter = checkpoint['epoch']*len(train_loader)*args.batch_size_orig
+        total_iter = checkpoint['total_iter']
+        goal = (checkpoint['epoch']+1)*len(train_loader)*args.batch_size_orig
         # total_iter = checkpoint['total_iter']
     # model.encoder.eval()
     # for p in model.encoder.parameters():
@@ -89,9 +92,9 @@ def train(model, args, device):
             if not data_dict:
                 continue
             if resume:
-                if total_iter < checkpoint['total_iter']:
-                    total_iter += args.batch_size_orig
-                    continue
+                if total_iter>=goal:
+                    resume = False
+                    break
             optimizer.zero_grad()
             total_iter += args.batch_size_orig
 
@@ -131,19 +134,22 @@ def train(model, args, device):
             # save model
             if should_write and ((total_iter % args.validate_every) < args.batch_size_orig):
                 model.eval()
+                torch.cuda.empty_cache()
+                gc.collect()
                 target_path = args.exp_model_dir + '/checkpoint_iter_%010d.pt' % total_iter
                 torch.save({"model": model.state_dict(),
                             "iter": total_iter}, target_path)
                 print('model saved / path: {}'.format(target_path))
-                validate(model, args, test_loader, device, total_iter, args.eval_acc_txt)
+                validate(model, args, val_loader, device, total_iter, args.eval_acc_txt)
                 model.train()
 
                 # empty cache
                 torch.cuda.empty_cache()
-            if inc == 100:
-                # torch.cuda.empty_cache()
+                gc.collect()
+            if inc == 500:
+                torch.cuda.empty_cache()
                 inc = 0
-                # gc.collect()
+                gc.collect()
                 checkpoint = { 
                 'epoch': epoch,
                 'model': model.state_dict(),
@@ -151,8 +157,21 @@ def train(model, args, device):
                 'lr_sched': scheduler.state_dict(),
                 'scaler': scaler.state_dict(),
                 'total_iter': total_iter}
-                torch.save(checkpoint, 'checkpoint.pth')
+                torch.save(checkpoint, os.path.join(args.exp_dir,"checkpoint.pth"))
             inc+=1
+        # if should_write:
+        #     model.eval()
+        #     for p in model.parameters():
+        #         p.require_grads = False
+        #     torch.cuda.empty_cache()
+        #     gc.collect()
+        #     validate(model, args, test_loader, device, total_iter, args.eval_acc_txt)
+        #     for p in model.parameters():
+        #         p.require_grads = True
+        #     model.train()
+        #     # empty cache
+        #     torch.cuda.empty_cache()
+        #     gc.collect()
         checkpoint = { 
             'epoch': epoch,
             'model': model.state_dict(),
@@ -160,7 +179,7 @@ def train(model, args, device):
             'lr_sched': scheduler.state_dict(),
             'scaler': scaler.state_dict(),
             'total_iter': total_iter}
-        torch.save(checkpoint, 'checkpoint.pth')
+        torch.save(checkpoint, os.path.join(args.exp_dir,"checkpoint.pth"))
         torch.cuda.empty_cache()
         gc.collect()
     if should_write:
@@ -225,8 +244,8 @@ def validate(model, args, test_loader, device, total_iter, where_to_write, vis_d
             #     total_normal_errors = E[mask].detach().cpu()
             # else:
             #     total_normal_errors = torch.cat((total_normal_errors, E[mask].detach().cpu()), dim=0)
-            torch.cuda.empty_cache()
-            gc.collect()
+            # torch.cuda.empty_cache()
+            # gc.collect()
         total_normal_errors = torch.cat(total_normal_errors, dim=0)
         total_normal_errors = total_normal_errors.data.cpu().numpy()
         metrics = utils.compute_normal_errors(total_normal_errors)

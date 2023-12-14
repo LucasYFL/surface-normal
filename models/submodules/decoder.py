@@ -28,22 +28,6 @@ class Decoder(nn.Module):
 
         else:
             raise Exception('invalid architecture')
-        # self.conv2 = nn.Conv2d(2048, 2048, kernel_size=1, stride=1, padding=0)
-        # if args.architecture == 'BN':
-        #     self.up1 = UpSampleBN(skip_input=2048 + 176, output_features=1024)
-        #     self.up2 = UpSampleBN(skip_input=1024 + 64, output_features=512)
-        #     self.up3 = UpSampleBN(skip_input=512 + 40, output_features=256)
-        #     self.up4 = UpSampleBN(skip_input=256 + 24, output_features=128)
-
-        # elif args.architecture == 'GN':
-        #     self.up1 = UpSampleGN(skip_input=2048 + 176, output_features=1024)
-        #     self.up2 = UpSampleGN(skip_input=1024 + 64, output_features=512)
-        #     self.up3 = UpSampleGN(skip_input=512 + 40, output_features=256)
-        #     self.up4 = UpSampleGN(skip_input=256 + 24, output_features=128)
-
-        # else:
-        #     raise Exception('invalid architecture')
-
 
         # produces 1/8 res output
         self.out_conv_res8 = nn.Conv2d(512, 4, kernel_size=3, stride=1, padding=1)

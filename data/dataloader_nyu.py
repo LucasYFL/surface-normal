@@ -13,15 +13,15 @@ import os
 import pickle
 # Modify the following
 NYU_PATH = './datasets/nyu/'
-SCANNET_PATH = '/content/surface-normal/scan/' # modify
+SCANNET_PATH = './scan/' # modify
 class ScanLoader(object):
-    def __init__(self, args, mode):
+    def __init__(self, args, mode,small=False):
         """mode: {'train_big',  # training set used by GeoNet (CVPR18, 30907 images)
                   'train',      # official train set (795 images) 
                   'test'}       # official test set (654 images)
         """
         
-        self.t_samples = ScanPre(args, mode)
+        self.t_samples = ScanPre(args, mode,small)
         
         # train, train_big
         if 'train' in mode:
@@ -33,22 +33,24 @@ class ScanLoader(object):
             self.data = DataLoader(self.t_samples, args.batch_size,
                                    shuffle=(self.train_sampler is None),
                                    num_workers=args.num_threads,
-                                   pin_memory=True,
+                                   pin_memory=False,
                                    drop_last=True,
                                    sampler=self.train_sampler)
 
         else:
-            self.data = DataLoader(self.t_samples, 1,
+            self.data = DataLoader(self.t_samples, 8,
                                    shuffle=False,
-                                   num_workers=1,
+                                   num_workers=8,
                                    pin_memory=False)
 
 class ScanPre(Dataset):
-    def __init__(self, args, mode):
+    def __init__(self, args, mode,small=False):
         self.args = args
         splitdir = os.path.join(SCANNET_PATH, 'train_test_split.pkl')
         with open(splitdir, 'rb') as f:
             self.filenames = pickle.load(f)[mode][0]
+        if small:
+            self.filenames = self.filenames[::50]
         dir = os.path.join(SCANNET_PATH, 'scannet-frames')
         # self.filenames = [f for f in os.listdir(dir) if f.endswith('-color.png')]
         self.mode = mode
@@ -134,7 +136,7 @@ class ScanPre(Dataset):
         sample = {'img': img,
                   'norm': norm_gt,
                   'norm_valid_mask': norm_valid_mask,
-                  'scene_name': img_name,
+                  'scene_name': self.mode,
                   'img_name': img_name}
 
         return sample
@@ -165,9 +167,9 @@ class NyuLoader(object):
                                    sampler=self.train_sampler)
 
         else:
-            self.data = DataLoader(self.t_samples, 1,
+            self.data = DataLoader(self.t_samples, 10,
                                    shuffle=False,
-                                   num_workers=1,
+                                   num_workers=8,
                                    pin_memory=False)
 
 
