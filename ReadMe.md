@@ -1,6 +1,10 @@
 # EECS 442 Final Project
 ## Surface Normal Estimation
 ### --- Yifu Lu, Xinjin Li, Ruiying Yang
+
+Our work mainly based on the paper: Estimating and Exploiting the Aleatoric Uncertainty in Surface Normal Estimation. 
+Based on this, we changed the training pipeline to fit efficientNet V2. In addition, we chose NYU v2 large dataset as our training data, for which we wrote a dataloader for .mat input files.
+
 ![442Final_Project](https://github.com/LucasYFL/surface-normal/assets/113412059/5e0e1fe5-8e01-4c46-830e-4c788f924286)
 ![442Final_Project (1)](https://github.com/LucasYFL/surface-normal/assets/113412059/43ad562b-a6e7-4ed5-8852-eedd094a8736)
 ![442Final_Project (2)](https://github.com/LucasYFL/surface-normal/assets/113412059/6f70d2e1-bd5a-43ec-837b-82ef72266db8)
