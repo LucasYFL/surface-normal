@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torchvision
 from torchvision.models.efficientnet import EfficientNet_V2_S_Weights
-
+# newly implemented by us
 class Encoder(nn.Module):
     def __init__(
         self

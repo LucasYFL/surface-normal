@@ -13,17 +13,12 @@ import os
 import pickle
 # Modify the following
 NYU_PATH = './datasets/nyu/'
-SCANNET_PATH = './scan/' # modify
+SCANNET_PATH = './scan/' # ScanNet related functionality are added
 class ScanLoader(object):
-    def __init__(self, args, mode,small=False):
-        """mode: {'train_big',  # training set used by GeoNet (CVPR18, 30907 images)
-                  'train',      # official train set (795 images) 
-                  'test'}       # official test set (654 images)
-        """
-        
+    def __init__(self, args, mode,small=False):       
         self.t_samples = ScanPre(args, mode,small)
         
-        # train, train_big
+        # train
         if 'train' in mode:
             if args.distributed:
                 self.train_sampler = torch.utils.data.distributed.DistributedSampler(self.t_samples)
@@ -147,6 +142,7 @@ class NyuLoader(object):
                   'train',      # official train set (795 images) 
                   'test'}       # official test set (654 images)
         """
+        # actually support for large version than original code
         if mode == 'train_big':
             self.t_samples = LargePreprocess(args, mode)
         else:
@@ -172,7 +168,7 @@ class NyuLoader(object):
                                    num_workers=8,
                                    pin_memory=False)
 
-
+# Added and tested by us
 class LargePreprocess(Dataset):
     def __init__(self, args, mode):
         self.args = args

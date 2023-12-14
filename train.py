@@ -15,7 +15,7 @@ import torch.utils.data.distributed
 import utils.utils as utils
 from utils.losses import compute_loss
 
-
+# save & load, more empty cache
 def train(model, args, device):
     if device is None:
         device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
@@ -30,6 +30,7 @@ def train(model, args, device):
         train_loader = NyuLoader(args, 'train_big').data
         val_loader=test_loader = NyuLoader(args, 'test').data
     else:
+        # added support for scannet
         from data.dataloader_nyu import ScanLoader,NyuLoader
         train_loader = ScanLoader(args, 'train').data
         test_loader = ScanLoader(args, 'test').data
@@ -67,6 +68,8 @@ def train(model, args, device):
     total_iter = 0
     model.train()
     resume = False
+    # functionality for resuming training
+
     if os.path.exists(os.path.join(args.exp_dir,"checkpoint.pth")):
         resume = True
         checkpoint = torch.load(os.path.join(args.exp_dir,"checkpoint.pth"))
@@ -81,6 +84,7 @@ def train(model, args, device):
     # for p in model.encoder.parameters():
     #     p.requires_grad = False
     for epoch in range(args.n_epochs):
+        # functionality for resuming training
         if resume and epoch < checkpoint['epoch']:
             continue
         if args.rank == 0:
@@ -146,6 +150,7 @@ def train(model, args, device):
                 # empty cache
                 torch.cuda.empty_cache()
                 gc.collect()
+            #newly added saving
             if inc == 500:
                 torch.cuda.empty_cache()
                 inc = 0
@@ -209,7 +214,7 @@ def _unnormalize(img_in):
     img_out = (img_out * 255).astype(np.uint8)
     return img_out
 
-    
+# more efficient implementation regarding memory usage
 def validate(model, args, test_loader, device, total_iter, where_to_write, vis_dir=None):
     with torch.no_grad():
         total_normal_errors = []

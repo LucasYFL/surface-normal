@@ -13,6 +13,7 @@ class Decoder(nn.Module):
         self.importance_ratio = args.importance_ratio
 
         # feature-map
+        # changed to match new dimensions
         self.conv2 = nn.Conv2d(1280, 1280, kernel_size=1, stride=1, padding=0)
         if args.architecture == 'BN':
             self.up1 = UpSampleBN(skip_input=1280 + 160, output_features=1024)
@@ -57,7 +58,8 @@ class Decoder(nn.Module):
         )
 
     def forward(self, features, gt_norm_mask=None, mode='test'):
-        # x_block0, x_block1, x_block2, x_block3, x_block4 = features[4], features[5], features[6], features[8], features[11]
+       
+        # changed to match input from EfficientNet V2 S
         x_block0, x_block1, x_block2, x_block3, x_block4 = features[2], features[3], features[4], features[6], features[8]
 
         # generate feature-map
